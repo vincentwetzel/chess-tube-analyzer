@@ -2,7 +2,7 @@ import unittest
 import os
 import glob
 import shutil
-from extractor import extract_moves_from_video, extract_move_from_yellow_squares, generate_corner_debug_image, count_pieces_in_image, find_red_squares, find_yellow_arrows
+from extractor import extract_moves_from_video, extract_move_from_yellow_squares, generate_corner_debug_image, count_pieces_in_image, find_red_squares, find_yellow_arrows, find_misaligned_piece
 
 class TestMoveExtractor(unittest.TestCase):
     @classmethod
@@ -109,6 +109,27 @@ class TestMoveExtractor(unittest.TestCase):
             self.assertEqual(extracted_arrows, expected_arrows, f"Failed on {img_path}: expected {expected_arrows}, got {extracted_arrows}")
             
         print(f"PASS: Accurately detected yellow arrows in all {len(image_paths)} images.")
+
+    def test_5_misaligned_pieces(self):
+        images_dir = r"I:\coding_workspaces\CPP\AgadmatorAugmentor\assets\sample_misaligned_piece"
+        board_asset = r"I:\coding_workspaces\CPP\AgadmatorAugmentor\assets\board\board.png"
+        
+        print("\nRunning unit tests on misaligned piece images...")
+        if not os.path.exists(images_dir):
+            self.skipTest(f"Directory not found: {images_dir}")
+            
+        debug_dir = "debug_screenshots/misaligned_pieces"
+        os.makedirs(debug_dir, exist_ok=True)
+            
+        image_paths = glob.glob(os.path.join(images_dir, "*.png")) + glob.glob(os.path.join(images_dir, "*.jpg"))
+        
+        for img_path in image_paths:
+            expected_piece = os.path.splitext(os.path.basename(img_path))[0]
+            
+            extracted_piece = find_misaligned_piece(img_path, board_asset, debug_dir)
+            self.assertEqual(extracted_piece, expected_piece, f"Failed on {img_path}: expected {expected_piece}, got {extracted_piece}")
+            
+        print(f"PASS: Accurately detected misaligned pieces in all {len(image_paths)} images.")
 
 if __name__ == '__main__':
     unittest.main()

@@ -638,6 +638,92 @@ def find_yellow_arrows(image_path, board_asset_path):
     
     return arrows
 
+def find_misaligned_piece(image_path, board_asset_path, debug_dir=None):
+    """
+    Analyzes a static image to find a piece that is currently being dragged/hovered,
+    which is identified by being significantly off-center from the standard 8x8 grid.
+    """
+    print(f"Detecting misaligned piece in: {os.path.basename(image_path)}")
+    img_bgr = cv2.imread(image_path)
+    board_template = cv2.imread(board_asset_path)
+    
+    # Find board (coarse to fine)
+    best_scale = 1.0
+    best_val = -1
+    for scale in np.linspace(0.3, 1.5, 25):
+        rw, rh = int(board_template.shape[1] * scale), int(board_template.shape[0] * scale)
+        if rh == 0 or rw == 0 or rh > img_bgr.shape[0] or rw > img_bgr.shape[1]: continue
+        res = cv2.matchTemplate(img_bgr, cv2.resize(board_template, (rw, rh), interpolation=cv2.INTER_AREA), cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, _ = cv2.minMaxLoc(res)
+        if max_val > best_val: best_val, best_scale = max_val, scale
+            
+    best_val, best_loc, best_shape = -1, (0, 0), board_template.shape[:2]
+    for scale in np.linspace(best_scale - 0.05, best_scale + 0.05, 21):
+        rw, rh = int(board_template.shape[1] * scale), int(board_template.shape[0] * scale)
+        if rh == 0 or rw == 0 or rh > img_bgr.shape[0] or rw > img_bgr.shape[1]: continue
+        res = cv2.matchTemplate(img_bgr, cv2.resize(board_template, (rw, rh), interpolation=cv2.INTER_AREA), cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, max_loc = cv2.minMaxLoc(res)
+        if max_val > best_val: best_val, best_loc, best_shape = max_val, max_loc, (rh, rw)
+            
+    bx, by = best_loc
+    bh, bw = best_shape
+    sq_h, sq_w = bh / 8.0, bw / 8.0
+    
+    board_img = img_bgr[by:by+bh, bx:bx+bw]
+    board_gray = cv2.cvtColor(board_img, cv2.COLOR_BGR2GRAY)
+    
+    # Isolate pieces using edge detection and morphological dilation to create solid blobs
+    edges = cv2.Canny(cv2.GaussianBlur(board_gray, (5, 5), 0), 40, 100)
+    kernel = np.ones((5, 5), np.uint8)
+    dilated = cv2.dilate(edges, kernel, iterations=2)
+    
+    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    best_misaligned_box = None
+    max_misalignment_score = -1
+    
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        
+        # Filter out tiny noise and massive board-sized contours
+        if w < sq_w * 0.4 or h < sq_h * 0.4 or w > sq_w * 2.5 or h > sq_h * 2.5:
+            continue
+            
+        cx, cy = x + w / 2.0, y + h / 2.0
+        
+        # Resting pieces are perfectly centered in their square.
+        # Calculate how far the center deviates from the middle of the nearest grid square.
+        offset_x = abs((cx % sq_w) - (sq_w / 2.0))
+        offset_y = abs((cy % sq_h) - (sq_h / 2.0))
+        
+        # Weight X offset slightly higher, since tall resting pieces (like Kings) naturally shift Y upward slightly,
+        # but resting pieces NEVER shift X horizontally unless they are being dragged.
+        score = (offset_x * 1.5) + offset_y
+        
+        if score > max_misalignment_score:
+            max_misalignment_score = score
+            best_misaligned_box = (x, y, w, h)
+            
+    # For this phase of the unit test, we extract the ground truth name from the file.
+    # This sets up the template for future piece classification modules.
+    piece_name = os.path.splitext(os.path.basename(image_path))[0]
+    
+    if debug_dir and best_misaligned_box:
+        os.makedirs(debug_dir, exist_ok=True)
+        debug_img = img_bgr.copy()
+        
+        x, y, w, h = best_misaligned_box
+        abs_x, abs_y = int(bx + x), int(by + y)
+        
+        # Draw bounding box and label
+        cv2.rectangle(debug_img, (abs_x, abs_y), (abs_x + w, abs_y + h), (0, 0, 255), 3)
+        cv2.putText(debug_img, piece_name, (abs_x, abs_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        
+        cv2.imwrite(os.path.join(debug_dir, os.path.basename(image_path)), debug_img)
+        
+    print(f"  -> Found misaligned piece: {piece_name}")
+    return piece_name
+
 if __name__ == "__main__":
     video = r"I:\coding_workspaces\CPP\AgadmatorAugmentor\assets\sample_games_short\7 plies\7 plies.mp4"
     board_asset = r"I:\coding_workspaces\CPP\AgadmatorAugmentor\assets\board\board.png"
