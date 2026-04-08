@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+venv/
+env/
+
+# Assets
+assets/
+
+# C/C++ build
+build/
+dist/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.lib
+*.out
+
+# Debug / temp output
+debug_screenshots/
+output/
+*.log
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.qwen/
+
+# OS
+.DS_Store
+Thumbs.db
