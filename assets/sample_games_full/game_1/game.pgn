@@ -1,0 +1,105 @@
+[Event "European Club Cup 2025"]
+[Site "?"]
+[Date "2025.??.??"]
+[Round "?"]
+[White "Max Warmerdam"]
+[Black "Dommaraju Gukesh"]
+[Result "0-1"]
+[ECO "E60"]
+[WhiteElo "?"]
+[BlackElo "?"]
+[TimeControl "?"]
+[SetUp "0"]
+
+{ Notes: This game was featured on Agadmator's Chess Channel on 2025-10-23 }
+{ Video: Who's Afraid Of The World Champion }
+
+1. d4 d5 
+2. c4 e6 
+3. Nf3 Nf6 
+4. g3 Bb4+ 
+5. Nbd2 a5 
+6. Bg2 a4 
+7. O-O { Analysis: c6 is expected } 
+7... c6 
+8. Qc2 O-O 
+9. e4 Nbd7 
+10. e5 Nc6 
+11. Qc2 O-O { Note: Black already castled on move 8, this may be notation error }
+12. Rd1 Be7 
+13. e3 Nb4 
+14. Qc3 dxc4 
+{ Analysis 1: 14... Nxc4 15. Ne4 }
+{ Analysis 2: 14... Qxc4 15. b5 16. Qe2 Bb7 17. a3 Nc2 18. Rb1 b4 }
+15. a3 { Analysis: Nd3 expected } 
+15... Nd3 
+16. Qxc4 Nxc1 
+17. Rxc1 Nfd5 
+18. Qxc4 Nb6 
+19. Qc3 Nc6 
+20. Qc2 Na5 
+21. Rb1 Bd7 
+22. Ne5 Be8 
+23. Ne4 Nd5 
+24. Nc5 Bxc5 
+25. dxc5 Qc8 
+26. Bd2 f6 
+27. Bxa5 Rxa5 
+28. Nd3 Ne7 
+29. Qc4 Bf7 
+30. Qc3 Ra8 
+{ Analysis: 30... b4 31. axb3 Qxb3 }
+31. Nb4 c6 
+32. Rd6 Nf5 
+33. Rd3 e5 
+34. Rbd1 Be6 
+35. Nc2 Qc7 
+36. e4 Nh6 
+37. Ne3 Qa5 
+38. Qc1 Nf7 
+39. Nf5 { Analysis: Bxf5 expected } 
+{ Analysis: Bxf5 40. exf5 }
+{ Analysis: Rfd8 }
+39... Rfd8 
+40. Nd6 Nxd6 
+{ Analysis: 40... cxd6 }
+41. cxd6 Kf7 
+42. Bf1 Rxd6 
+43. cxd6 Kf8 
+44. Kg2 Bb3 
+45. Rd3 Rd8 
+46. Be2 Be6 
+47. h3 c5 
+48. Bg4 Bf7 
+49. h4 Qb5 
+50. Qc3 b6 
+{ Analysis: Rd2 }
+{ Analysis: f4 exf4 52. e5 }
+{ Analysis: fxe5 52. Qxe5 Re8 53. d7 Rxe5 54. d8=Q+ Re8 55. Qd6+ Kg8 56. Rd2 Rf8 57. gxf4 }
+{ Analysis: c4 }
+51. Rd2 fxe5 
+52. gxf4 exf4 
+53. Qd4 h5 
+54. Bf3 Qf5 
+55. Qxb6 Qf6 
+{ Analysis: Rd4 Qxh4 57. Rxf4 Qxf4 58. Qxd8+ Be8 59. Qe7+ }
+{ Analysis: Qf2 Kg8 }
+56. d7 Be6 
+57. Bxh5 Rxd7 
+58. Rxd7 Bxd7 
+59. Kh2 Qf5 
+60. Be2 Qh3+ 
+61. Kg1 Bc6 
+{ Analysis 1: Bxc4+ Kh7 63. Bd3+ }
+{ Analysis 2: Qc2+ }
+62. Qh2 Qe3+ 
+63. Qf2 Qe4 
+64. Qh2 f3 
+65. Bf1 Qg4+ 
+66. Kf2 Qd4+ 
+{ Analysis 1: Kg3 Qe5+ 68. Qh3 Bd7# }
+{ Analysis 2: Ke1 Qe3+ 68. Kd1 f2 69. Qb8+ Kh7 70. Qb4 Bf3+ 71. Kc2 Qe4+ 72. Kc1 Qe1+ 73. Kc2 Be4+ 74. Bd3 cxd3# }
+{ Analysis 3: Rd8 }
+{ Note: Game continuation shows undo of exf4 and f4, then Rd2 }
+
+0-1
