@@ -1,0 +1,65 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "F5: Launch GUI",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/cpp/build/Release/augmentor_gui.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/cpp/build/Release",
+            "environment": [],
+            "console": "externalTerminal",
+            "preLaunchTask": "Build GUI (Release)"
+        },
+        {
+            "name": "Run CLI (sample video)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/cpp/build/Release/extract_moves.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/cpp/build/Release",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build CLI (Release)"
+        },
+        {
+            "name": "Run CLI (custom video)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/cpp/build/Release/extract_moves.exe",
+            "args": [
+                "${input:videoPath}",
+                "--output",
+                "output/analysis.json"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/cpp/build/Release",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build CLI (Release)"
+        },
+        {
+            "name": "Run Tests",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/cpp/build/Release/test_extract_moves.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/cpp/build/Release",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Tests (Release)"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "videoPath",
+            "type": "promptString",
+            "description": "Path to chess video",
+            "default": ""
+        }
+    ]
+}
