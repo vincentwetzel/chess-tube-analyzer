@@ -2,11 +2,39 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Build GUI (Debug)",
+            "type": "shell",
+            "command": "cmake --build build --config Debug --target augmentor_gui",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
             "label": "Build GUI (Release)",
             "type": "shell",
             "command": "cmake --build build --config Release --target augmentor_gui",
             "options": {
-                "cwd": "${workspaceFolder}/cpp"
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Build CLI (Debug)",
+            "type": "shell",
+            "command": "cmake --build build --config Debug --target extract_moves",
+            "options": {
+                "cwd": "${workspaceFolder}"
             },
             "group": "build",
             "presentation": {
@@ -20,7 +48,21 @@
             "type": "shell",
             "command": "cmake --build build --config Release --target extract_moves",
             "options": {
-                "cwd": "${workspaceFolder}/cpp"
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Build Tests (Debug)",
+            "type": "shell",
+            "command": "cmake --build build --config Debug --target test_extract_moves",
+            "options": {
+                "cwd": "${workspaceFolder}"
             },
             "group": "build",
             "presentation": {
@@ -34,7 +76,7 @@
             "type": "shell",
             "command": "cmake --build build --config Release --target test_extract_moves",
             "options": {
-                "cwd": "${workspaceFolder}/cpp"
+                "cwd": "${workspaceFolder}"
             },
             "group": "build",
             "presentation": {

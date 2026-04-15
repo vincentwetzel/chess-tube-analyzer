@@ -2,14 +2,36 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "F5: Launch GUI",
+            "name": "F5: Launch GUI (Debug)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/cpp/build/Release/augmentor_gui.exe",
+            "program": "${workspaceFolder}/build/Debug/augmentor_gui.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/cpp/build/Release",
-            "environment": [],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "environment": [
+                {
+                    "name": "QT_PLUGIN_PATH",
+                    "value": "E:\\vcpkg\\installed\\x64-windows-static\\Qt6\\plugins"
+                }
+            ],
+            "console": "externalTerminal",
+            "preLaunchTask": "Build GUI (Debug)"
+        },
+        {
+            "name": "F5: Launch GUI (Release)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Release/augmentor_gui.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/Release",
+            "environment": [
+                {
+                    "name": "QT_PLUGIN_PATH",
+                    "value": "E:\\vcpkg\\installed\\x64-windows-static\\Qt6\\plugins"
+                }
+            ],
             "console": "externalTerminal",
             "preLaunchTask": "Build GUI (Release)"
         },
@@ -17,38 +39,50 @@
             "name": "Run CLI (sample video)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/cpp/build/Release/extract_moves.exe",
+            "program": "${workspaceFolder}/build/Debug/extract_moves.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/cpp/build/Release",
+            "cwd": "${workspaceFolder}/build/Debug",
             "environment": [],
             "console": "integratedTerminal",
-            "preLaunchTask": "Build CLI (Release)"
+            "preLaunchTask": "Build CLI (Debug)"
         },
         {
             "name": "Run CLI (custom video)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/cpp/build/Release/extract_moves.exe",
+            "program": "${workspaceFolder}/build/Debug/extract_moves.exe",
             "args": [
                 "${input:videoPath}",
                 "--output",
                 "output/analysis.json"
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/cpp/build/Release",
+            "cwd": "${workspaceFolder}/build/Debug",
             "environment": [],
             "console": "integratedTerminal",
-            "preLaunchTask": "Build CLI (Release)"
+            "preLaunchTask": "Build CLI (Debug)"
         },
         {
-            "name": "Run Tests",
+            "name": "Run Tests (Debug)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/cpp/build/Release/test_extract_moves.exe",
+            "program": "${workspaceFolder}/build/Debug/test_extract_moves.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/cpp/build/Release",
+            "cwd": "${workspaceFolder}/build/Debug",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Tests (Debug)"
+        },
+        {
+            "name": "Run Tests (Release)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Release/test_extract_moves.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/Release",
             "environment": [],
             "console": "integratedTerminal",
             "preLaunchTask": "Build Tests (Release)"
