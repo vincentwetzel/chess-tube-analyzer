@@ -3,6 +3,8 @@
 #include "UIDetectors.h"
 #include "FramePrefetcher.h"
 #include "GPUAccelerator.h"
+#include "ExtractorUtils.h"
+#include "MoveValidations.h"
 #include "libchess/position.hpp"
 #include "libchess/move.hpp"
 #include "libchess/square.hpp"
@@ -23,6 +25,7 @@
 #include <string_view>
 #include <array>
 #include <optional>
+#include <atomic>
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -42,109 +45,20 @@ struct ChessVideoExtractor::ScratchBuffers {
     cv::Mat reduced;
 };
 
-// ── Utility: format elapsed seconds as [H:MM:SS.mmm] ────────────────────────
-static std::string ts(double elapsed) {
-    int total_ms = static_cast<int>(elapsed * 1000.0);
-    int h = total_ms / 3600000;
-    int m = (total_ms % 3600000) / 60000;
-    int s = (total_ms % 60000) / 1000;
-    int ms = total_ms % 1000;
-    std::ostringstream oss;
-    if (h > 0) oss << h << ":" << std::setfill('0') << std::setw(2);
-    oss << m << ":" << std::setfill('0') << std::setw(2) << s << "." << std::setfill('0') << std::setw(3) << ms;
-    return "[" + oss.str() + "]";
-}
-
-// ── Square helpers (convention matches libchess: a1=0, h8=63) ────────────────
-
-// Pre-computed square name table — avoids per-call string allocation
-static const char* SQ_NAMES[64] = {
-    "a1","b1","c1","d1","e1","f1","g1","h1",
-    "a2","b2","c2","d2","e2","f2","g2","h2",
-    "a3","b3","c3","d3","e3","f3","g3","h3",
-    "a4","b4","c4","d4","e4","f4","g4","h4",
-    "a5","b5","c5","d5","e5","f5","g5","h5",
-    "a6","b6","c6","d6","e6","f6","g6","h6",
-    "a7","b7","c7","d7","e7","f7","g7","h7",
-    "a8","b8","c8","d8","e8","f8","g8","h8"
-};
-
-static const char* sq_name(int idx) {
-    return SQ_NAMES[idx];
-}
-
-// Pre-computes a 64-char array from a FEN string for O(1) piece lookups
-static std::array<char, 64> expand_fen(const std::string& fen) {
-    std::array<char, 64> board;
-    board.fill(' ');
-    int sq = 56; // Start at a8 (index 56)
-    for (char c : fen) {
-        if (c == ' ') break; // End of board layout
-        if (c == '/') { sq -= 16; } // Move down a rank (e.g., from rank 8 to 7)
-        else if (c >= '1' && c <= '8') { sq += (c - '0'); } // Skip empty squares
-        else { board[sq++] = c; }
-    }
-    return board;
-}
-
-// ── Utility: UTF-8 to std::filesystem::path ──────────────────────────────────
-static std::filesystem::path utf8_to_path(const std::string& utf8_str) {
-#ifdef _WIN32
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8_str.c_str(), -1, nullptr, 0);
-    if (wlen <= 0) return std::filesystem::path(utf8_str);
-    std::wstring wpath(wlen, 0);
-    MultiByteToWideChar(CP_UTF8, 0, utf8_str.c_str(), -1, &wpath[0], wlen);
-    while (!wpath.empty() && wpath.back() == L'\0') wpath.pop_back();
-    return std::filesystem::path(wpath);
-#else
-    return std::filesystem::path(utf8_str);
-#endif
-}
-
-// ── Utility: get safe 8.3 short path on Windows to bypass OpenCV Unicode bugs ──
-static std::string get_safe_path(const std::string& utf8_path) {
-#ifdef _WIN32
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8_path.c_str(), -1, nullptr, 0);
-    if (wlen <= 0) return utf8_path;
-    
-    std::wstring wpath(wlen, 0);
-    MultiByteToWideChar(CP_UTF8, 0, utf8_path.c_str(), -1, &wpath[0], wlen);
-    
-    DWORD short_len = GetShortPathNameW(wpath.c_str(), nullptr, 0);
-    if (short_len == 0) return utf8_path;
-    
-    std::wstring short_wpath(short_len, 0);
-    GetShortPathNameW(wpath.c_str(), &short_wpath[0], short_len);
-    
-    int ulen = WideCharToMultiByte(CP_UTF8, 0, short_wpath.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    if (ulen <= 0) return utf8_path;
-    
-    std::string short_path(ulen, 0);
-    WideCharToMultiByte(CP_UTF8, 0, short_wpath.c_str(), -1, &short_path[0], ulen, nullptr, nullptr);
-    
-    while (!short_path.empty() && short_path.back() == '\0') {
-        short_path.pop_back();
-    }
-    return short_path;
-#else
-    return utf8_path;
-#endif
-}
-
 // ── Constructor ──────────────────────────────────────────────────────────────
 
 ChessVideoExtractor::ChessVideoExtractor(const std::string& board_asset_path,
                                           const std::string& red_board_asset_path,
                                           DebugLevel debug_level)
     : debug_level_(debug_level) {
-    std::string safe_board_path = get_safe_path(board_asset_path);
+    std::string safe_board_path = utils::get_safe_path(board_asset_path);
     board_template_ = cv::imread(safe_board_path);
     if (board_template_.empty()) {
         throw std::runtime_error("Could not load board asset at: " + board_asset_path);
     }
 
     if (!red_board_asset_path.empty()) {
-        std::string safe_red_path = get_safe_path(red_board_asset_path);
+        std::string safe_red_path = utils::get_safe_path(red_board_asset_path);
         red_board_template_ = cv::imread(safe_red_path);
     }
 }
@@ -153,6 +67,10 @@ ChessVideoExtractor::~ChessVideoExtractor() = default;
 
 void ChessVideoExtractor::set_progress_callback(ProgressCallback cb) {
     progress_callback_ = std::move(cb);
+}
+
+const BoardGeometry* ChessVideoExtractor::get_board_geometry() const {
+    return geo_.get();
 }
 
 // ── Square diff calculation ──────────────────────────────────────────────────
@@ -190,7 +108,7 @@ ChessVideoExtractor::MoveScore ChessVideoExtractor::score_moves_for_board(const 
     const std::string& fen = pos.get_fen();
 
     // Expand FEN into an O(1) lookup array to avoid linear string scans per move
-    std::array<char, 64> board_map = expand_fen(fen);
+    std::array<char, 64> board_map = utils::expand_fen(fen);
 
     MoveScore best;
     for (const auto& move : legal_moves) {
@@ -247,8 +165,8 @@ ChessVideoExtractor::MoveScore ChessVideoExtractor::score_moves_for_board(const 
 // ── Main extraction loop ────────────────────────────────────────────────────
 
 GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_path,
-                                                        const std::string& output_path,
-                                                        const std::string& debug_label) {
+                                                        const std::string& debug_label,
+                                                        std::atomic<bool>* cancel_flag) {
     auto t_start = std::chrono::steady_clock::now();
     auto elapsed = [&]() {
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count();
@@ -265,7 +183,7 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
     // Initialize libchess position
     pos_ptr_ = std::make_unique<libchess::Position>("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
-    std::string safe_video_path = get_safe_path(video_path);
+    std::string safe_video_path = utils::get_safe_path(video_path);
     cv::VideoCapture cap(safe_video_path, cv::CAP_ANY, {
         cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY
     });
@@ -277,7 +195,7 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
     double total_frames = cap.get(cv::CAP_PROP_FRAME_COUNT);
     double duration = total_frames / fps;
 
-    log_info(ts(elapsed()) + " Locating board coordinates using template matching...");
+    log_info(utils::ts(elapsed()) + " Locating board coordinates using template matching...");
     cv::Mat first_frame;
     cap >> first_frame;
     if (first_frame.empty()) {
@@ -288,7 +206,7 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
     // (the prefetcher uses its own dedicated VideoCapture instance)
     cap.release();
 
-    log_info(ts(elapsed()) + " Performing multi-pass template matching to find exact board scale...");
+    log_info(utils::ts(elapsed()) + " Performing multi-pass template matching to find exact board scale...");
     
     // Use unique_ptr for geo, pipeline, etc. to match header
     geo_ = std::make_unique<BoardGeometry>(locate_board(first_frame, board_template_));
@@ -313,7 +231,7 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
     }
 
     if (debug_level_ != DebugLevel::None) {
-        log_info(ts(elapsed()) + " Generating debug screenshot for initial board...");
+        log_info(utils::ts(elapsed()) + " Generating debug screenshot for initial board...");
         std::filesystem::create_directories(debug_dir);
         cv::Mat debug_board = first_frame.clone();
         draw_board_grid(debug_board, *geo_, cv::Scalar(0, 255, 0), 2, true);
@@ -348,13 +266,13 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
     gpu_pipeline_->init();
     gpu_pipeline_active_ = gpu_pipeline_->is_available();
     if (gpu_pipeline_active_) {
-        log_info(ts(elapsed()) + " Zero-copy GPU pipeline enabled — absdiff on GPU, CPU integral for precision");
+        log_info(utils::ts(elapsed()) + " Zero-copy GPU pipeline enabled — absdiff on GPU, CPU integral for precision");
         gpu_pipeline_->update_current(board_gray_crop);
     } else {
-        log_info(ts(elapsed()) + " Using CPU pipeline for frame diff computation");
+        log_info(utils::ts(elapsed()) + " Using CPU pipeline for frame diff computation");
     }
 
-    log_info(ts(elapsed()) + " Scanning video frames to calculate plies...");
+    log_info(utils::ts(elapsed()) + " Scanning video frames to calculate plies...");
 
     auto round_t = [](double val) { return std::round(val * 100.0) / 100.0; };
 
@@ -406,6 +324,11 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
     std::optional<FramePrefetcher::FrameData> cached_fd;
 
     while (t < duration) {
+        if (cancel_flag && *cancel_flag) {
+            log_info("\nExtraction cancelled by user.");
+            break;
+        }
+
         FramePrefetcher::FrameData fd;
         if (cached_fd) {
             fd = std::move(*cached_fd);
@@ -511,11 +434,18 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
 
                 if (best_idx >= 0 && best_diff_val < 15.0) {
                     ++branch_counter;
-                    int reverted = static_cast<int>(data.moves.size()) - best_idx;
-                    log_info("\n" + ts(elapsed()) + " --- ANALYSIS REVERT at " + std::to_string(t) + "s (board matched past state) ---");
-                    log_info(ts(elapsed()) + " Snapped back to ply " + std::to_string(best_idx) + " (Branch " + std::to_string(branch_counter) + ")");
-                    if (reverted > 0) {
-                        log_info(ts(elapsed()) + "   Rolling back " + std::to_string(reverted) + " analysis plies");
+                    int reverted_count = static_cast<int>(data.moves.size()) - best_idx;
+                    log_info("\n" + utils::ts(elapsed()) + " --- ANALYSIS REVERT at " + std::to_string(t) + "s (board matched past state) ---");
+                    log_info(utils::ts(elapsed()) + " Snapped back to ply " + std::to_string(best_idx) + " (Branch " + std::to_string(branch_counter) + ")");
+                    if (reverted_count > 0) {
+                        log_info(utils::ts(elapsed()) + "   Saving " + std::to_string(reverted_count) + " analysis plies as a variation.");
+
+                        VariationData var_data;
+                        var_data.moves.assign(data.moves.begin() + best_idx, data.moves.end());
+                        var_data.timestamps.assign(data.timestamps.begin() + best_idx, data.timestamps.end());
+                        var_data.fens.assign(data.fens.begin() + best_idx, data.fens.end() - 1);
+                        var_data.clocks.assign(data.clocks.begin() + best_idx + 1, data.clocks.end());
+                        data.variations[best_idx].push_back(std::move(var_data));
                     }
 
                     data.moves.resize(best_idx);
@@ -536,8 +466,8 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
         // Score moves using libchess legal move generation
         auto best = score_moves_for_board(sq_means);
         if (best.score > 25.0 && best.from_sq >= 0) {
-            const char* from_name = sq_name(best.from_sq);
-            const char* to_name = sq_name(best.to_sq);
+            const char* from_name = utils::sq_name(best.from_sq);
+            const char* to_name = utils::sq_name(best.to_sq);
 
             // Build UCI strings only when needed (avoid allocation in scoring loop)
             char move_uci_buf[5];
@@ -559,8 +489,8 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
                     auto settle_best_tmp = score_moves_for_board(settle_sq_means);
 
                     if (settle_best_tmp.score > 25.0 && settle_best_tmp.from_sq >= 0) {
-                        const char* settle_from = sq_name(settle_best_tmp.from_sq);
-                        const char* settle_to = sq_name(settle_best_tmp.to_sq);
+                        const char* settle_from = utils::sq_name(settle_best_tmp.from_sq);
+                        const char* settle_to = utils::sq_name(settle_best_tmp.to_sq);
                         // Accept if same move or strictly better score
                         if (settle_best_tmp.score > best.score) {
                             t = next_t;
@@ -620,106 +550,21 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
             }
 
             // ── Validation 1: Yellow square check ────────────────────────────
-            // board_bgr is already cropped to the board region (same as Python)
-            auto is_yellow = [this, &board_bgr](const char* sq_name) {
-                int col = sq_name[0] - 'a';
-                int rank = sq_name[1] - '1';
-                int row = 7 - rank;
-                int y1 = static_cast<int>(row * geo_->sq_h);
-                int y2 = static_cast<int>((row + 1) * geo_->sq_h);
-                int x1 = static_cast<int>(col * geo_->sq_w);
-                int x2 = static_cast<int>((col + 1) * geo_->sq_w);
-                int ch = static_cast<int>(geo_->sq_h * 0.12);
-                int cw = static_cast<int>(geo_->sq_w * 0.12);
-
-                // Clamp to frame bounds
-                int fh = board_bgr.rows, fw = board_bgr.cols;
-                x1 = std::max(0, std::min(x1, fw - 1));
-                y1 = std::max(0, std::min(y1, fh - 1));
-                x2 = std::max(x1 + 1, std::min(x2, fw));
-                y2 = std::max(y1 + 1, std::min(y2, fh));
-
-                cv::Rect corners[4] = {
-                    {x1, y1, std::min(cw, x2 - x1), std::min(ch, y2 - y1)},
-                    {std::max(x1, x2 - cw), y1, std::min(cw, x2 - std::max(x1, x2 - cw)), std::min(ch, y2 - y1)},
-                    {x1, std::max(y1, y2 - ch), std::min(cw, x2 - x1), std::min(ch, y2 - std::max(y1, y2 - ch))},
-                    {std::max(x1, x2 - cw), std::max(y1, y2 - ch), std::min(cw, x2 - std::max(x1, x2 - cw)), std::min(ch, y2 - std::max(y1, y2 - ch))}
-                };
-
-                double y_score = 0;
-                for (const auto& c : corners) {
-                    if (c.width <= 0 || c.height <= 0) continue;
-                    cv::Mat patch = board_bgr(c);
-                    double sum_y = 0.0;
-                    for (int r = 0; r < patch.rows; ++r) {
-                        const auto* ptr = patch.ptr<cv::Vec3b>(r);
-                        for (int pc = 0; pc < patch.cols; ++pc) {
-                            sum_y += (ptr[pc][2] + ptr[pc][1]) / 2.0 - ptr[pc][0];
-                        }
-                    }
-                    y_score += sum_y / (patch.rows * patch.cols);
-                }
-                return y_score / 4.0;
-            };
-
-            double y_from = is_yellow(from_name);
-            double y_to = is_yellow(to_name);
+            double y_from = validation::check_yellowness(board_bgr, *geo_, from_name);
+            double y_to = validation::check_yellowness(board_bgr, *geo_, to_name);
             if (y_from < 40.0 || y_to < 40.0) {
                 if (debug_level_ != DebugLevel::None) {
-                    log_info("    " + ts(elapsed()) + " [Debug] " + std::to_string(t) + "s: " + move_uci + " rejected (Missing yellow highlights)");
+                    log_info("    " + utils::ts(elapsed()) + " [Debug] " + std::to_string(t) + "s: " + move_uci + " rejected (Missing yellow highlights)");
                 }
                 t = next_t;
                 continue;
             }
 
             // ── Validation 2: Hover box rejection ────────────────────────────
-            auto has_hover_box = [this, &board_bgr](const char* sq_name) {
-                int col = sq_name[0] - 'a';
-                int rank = sq_name[1] - '1';
-                int row = 7 - rank;
-                int y1 = static_cast<int>(row * geo_->sq_h);
-                int y2 = static_cast<int>((row + 1) * geo_->sq_h);
-                int x1 = static_cast<int>(col * geo_->sq_w);
-                int x2 = static_cast<int>((col + 1) * geo_->sq_w);
-
-                // Clamp to frame bounds
-                int fh = board_bgr.rows, fw = board_bgr.cols;
-                x1 = std::max(0, std::min(x1, fw - 1));
-                y1 = std::max(0, std::min(y1, fh - 1));
-                x2 = std::max(x1 + 1, std::min(x2, fw));
-                y2 = std::max(y1 + 1, std::min(y2, fh));
-
-                // Reuse scratch white_mask buffer
-                int sw = x2 - x1, sh = y2 - y1;
-                if (!scratch_) scratch_ = std::make_unique<ScratchBuffers>();
-                if (scratch_->white_mask.rows < sh || scratch_->white_mask.cols < sw) {
-                    scratch_->white_mask = cv::Mat(sh, sw, CV_8UC1);
-                }
-                cv::Mat white_mask_roi = scratch_->white_mask(cv::Rect(0, 0, sw, sh));
-                cv::inRange(board_bgr(cv::Rect(x1, y1, sw, sh)), cv::Scalar(160, 160, 160), cv::Scalar(255, 255, 255), white_mask_roi);
-
-                int thickness = std::max(3, static_cast<int>(geo_->sq_w * 0.08));
-                cv::Mat top = white_mask_roi(cv::Rect(0, 0, sw, thickness));
-                cv::Mat bottom = white_mask_roi(cv::Rect(0, sh - thickness, sw, thickness));
-                cv::Mat left = white_mask_roi(cv::Rect(0, 0, thickness, sh));
-                cv::Mat right = white_mask_roi(cv::Rect(sw - thickness, 0, thickness, sh));
-
-                cv::reduce(top, scratch_->reduced, 0, cv::REDUCE_MAX);
-                double r0 = static_cast<double>(cv::countNonZero(scratch_->reduced)) / std::max(1, sw);
-                cv::reduce(bottom, scratch_->reduced, 0, cv::REDUCE_MAX);
-                double r1 = static_cast<double>(cv::countNonZero(scratch_->reduced)) / std::max(1, sw);
-                cv::reduce(left, scratch_->reduced, 1, cv::REDUCE_MAX);
-                double r2 = static_cast<double>(cv::countNonZero(scratch_->reduced)) / std::max(1, sh);
-                cv::reduce(right, scratch_->reduced, 1, cv::REDUCE_MAX);
-                double r3 = static_cast<double>(cv::countNonZero(scratch_->reduced)) / std::max(1, sh);
-
-                int visible = (r0 > 0.10) + (r1 > 0.10) + (r2 > 0.10) + (r3 > 0.10);
-                return visible >= 2;
-            };
-
-            if (has_hover_box(to_name)) {
+            if (!scratch_) scratch_ = std::make_unique<ScratchBuffers>();
+            if (validation::check_hover_box(board_bgr, *geo_, scratch_->white_mask, scratch_->reduced, to_name)) {
                 if (debug_level_ != DebugLevel::None) {
-                    log_info("    " + ts(elapsed()) + " [Debug] " + std::to_string(t) + "s: " + move_uci + " rejected (Piece is still mid-drag)");
+                    log_info("    " + utils::ts(elapsed()) + " [Debug] " + std::to_string(t) + "s: " + move_uci + " rejected (Piece is still mid-drag)");
                 }
                 t = next_t;
                 continue;
@@ -731,7 +576,7 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
                 std::string expected = (pos_ptr_->turn() == libchess::Side::White) ? "black" : "white";
                 if (clocks.active_player != expected) {
                     if (debug_level_ != DebugLevel::None)
-                        log_info("    " + ts(elapsed()) + " [Debug] " + std::to_string(t) + "s: " + move_uci + " rejected (Waiting for clock to flip)");
+                        log_info("    " + utils::ts(elapsed()) + " [Debug] " + std::to_string(t) + "s: " + move_uci + " rejected (Waiting for clock to flip)");
                     t = next_t;
                     continue;
                 }
@@ -742,7 +587,7 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
             data.timestamps.push_back(t);
 
             std::ostringstream move_log_ss;
-            move_log_ss << ts(elapsed()) << " [Branch " << branch_counter << "] Ply " << data.moves.size()
+            move_log_ss << utils::ts(elapsed()) << " [Branch " << branch_counter << "] Ply " << data.moves.size()
                         << ": detected " << move_uci << " at " << t << "s (confidence: " << round_t(score_to_confidence(best.score)) << "%)";
             log_info(move_log_ss.str());
             // --- ADDED VISIBILITY: Print Top 3 Candidates ---
@@ -754,7 +599,7 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
                 std::vector<Cand> cands;
                 
                 std::string fen = pos_ptr_->get_fen();
-                std::array<char, 64> board_map = expand_fen(fen);
+                std::array<char, 64> board_map = utils::expand_fen(fen);
                 
                 for (const auto& m : pos_ptr_->legal_moves()) {
                     int f = static_cast<int>(static_cast<unsigned int>(m.from()));
@@ -796,8 +641,8 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
                     }
                     std::string uci;
                     uci.reserve(4);
-                    uci += sq_name(f);
-                    uci += sq_name(to);
+                    uci += utils::sq_name(f);
+                    uci += utils::sq_name(to);
                     cands.push_back({std::move(uci), s});
                 }
                 
@@ -806,7 +651,7 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
                 std::partial_sort(cands.begin(), cands.begin() + k, cands.end(), [](const Cand& a, const Cand& b){ return a.score > b.score; });
 
                 std::ostringstream cands_ss;
-                cands_ss << "    " << ts(elapsed()) << " > Top candidates: ";
+                cands_ss << "    " << utils::ts(elapsed()) << " > Top candidates: ";
                 for (size_t i = 0; i < k; ++i) {
                     cands_ss << cands[i].uci << " (" << round_t(score_to_confidence(cands[i].score)) << "%)   ";
                 }
@@ -847,36 +692,6 @@ GameData ChessVideoExtractor::extract_moves_from_video(const std::string& video_
     // Final progress line
     if (last_progress_t >= 0) {
         if (!progress_callback_) std::cout << "\n";
-    }
-
-    // Write JSON output
-    double total_scan = elapsed();
-    if (!output_path.empty()) {
-        log_info(ts(total_scan) + " Writing output to " + output_path);
-        nlohmann::json j;
-        j["moves"] = data.moves;
-        j["timestamps"] = data.timestamps;
-        j["fens"] = data.fens;
-
-        auto clocks_arr = nlohmann::json::array();
-        for (const auto& c : data.clocks) {
-            clocks_arr.push_back({
-                {"active", c.active},
-                {"white", c.white_time},
-                {"black", c.black_time}
-            });
-        }
-        j["clocks"] = clocks_arr;
-
-        std::filesystem::path out_path = utf8_to_path(output_path);
-        if (out_path.has_parent_path()) {
-            std::filesystem::create_directories(out_path.parent_path());
-        }
-
-        std::ofstream ofs(out_path);
-        if (ofs.is_open()) {
-            ofs << j.dump(4) << "\n";
-        }
     }
 
     return data;

@@ -5,7 +5,7 @@
             "name": "F5: Launch GUI (Debug)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/augmentor_gui.exe",
+            "program": "${workspaceFolder}/build/Debug/ChessTube Analyzer.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Debug",
@@ -15,14 +15,14 @@
                     "value": "E:\\vcpkg\\installed\\x64-windows-static\\Qt6\\plugins"
                 }
             ],
-            "console": "externalTerminal",
+            "console": "internalConsole", // Changed from externalTerminal
             "preLaunchTask": "Build GUI (Debug)"
         },
         {
             "name": "F5: Launch GUI (Release)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Release/augmentor_gui.exe",
+            "program": "${workspaceFolder}/build/Release/ChessTube Analyzer.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/Release",
@@ -32,7 +32,7 @@
                     "value": "E:\\vcpkg\\installed\\x64-windows-static\\Qt6\\plugins"
                 }
             ],
-            "console": "externalTerminal",
+            "console": "internalConsole", // Changed from externalTerminal
             "preLaunchTask": "Build GUI (Release)"
         },
         {

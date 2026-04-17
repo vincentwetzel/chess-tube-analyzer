@@ -10,7 +10,7 @@
             },
             "group": "build",
             "presentation": {
-                "reveal": "silent",
+                "reveal": "always",
                 "panel": "shared"
             },
             "problemMatcher": "$msCompile"
