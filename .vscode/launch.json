@@ -12,7 +12,11 @@
             "environment": [
                 {
                     "name": "QT_PLUGIN_PATH",
-                    "value": "E:\\vcpkg\\installed\\x64-windows-static\\Qt6\\plugins"
+                    "value": "E:\\vcpkg\\installed\\x64-windows\\debug\\Qt6\\plugins"
+                },
+                {
+                    "name": "PATH",
+                    "value": "E:\\vcpkg\\installed\\x64-windows\\debug\\bin;E:\\vcpkg\\installed\\x64-windows\\bin;${env:PATH}"
                 }
             ],
             "console": "internalConsole", // Changed from externalTerminal
@@ -29,7 +33,11 @@
             "environment": [
                 {
                     "name": "QT_PLUGIN_PATH",
-                    "value": "E:\\vcpkg\\installed\\x64-windows-static\\Qt6\\plugins"
+                    "value": "E:\\vcpkg\\installed\\x64-windows\\Qt6\\plugins"
+                },
+                {
+                    "name": "PATH",
+                    "value": "E:\\vcpkg\\installed\\x64-windows\\bin;${env:PATH}"
                 }
             ],
             "console": "internalConsole", // Changed from externalTerminal
