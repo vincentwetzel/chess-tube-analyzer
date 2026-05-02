@@ -6,7 +6,11 @@
             "type": "shell",
             "command": "cmake --build build --config Debug --target augmentor_gui",
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "TEMP": "${workspaceFolder}\\temp",
+                    "TMP": "${workspaceFolder}\\temp"
+                }
             },
             "group": "build",
             "presentation": {
@@ -20,7 +24,11 @@
             "type": "shell",
             "command": "cmake --build build --config Release --target augmentor_gui",
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "TEMP": "${workspaceFolder}\\temp",
+                    "TMP": "${workspaceFolder}\\temp"
+                }
             },
             "group": "build",
             "presentation": {
@@ -34,7 +42,11 @@
             "type": "shell",
             "command": "cmake --build build --config Debug --target extract_moves",
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "TEMP": "${workspaceFolder}\\temp",
+                    "TMP": "${workspaceFolder}\\temp"
+                }
             },
             "group": "build",
             "presentation": {
@@ -48,7 +60,11 @@
             "type": "shell",
             "command": "cmake --build build --config Release --target extract_moves",
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "TEMP": "${workspaceFolder}\\temp",
+                    "TMP": "${workspaceFolder}\\temp"
+                }
             },
             "group": "build",
             "presentation": {
@@ -62,7 +78,11 @@
             "type": "shell",
             "command": "cmake --build build --config Debug --target test_extract_moves",
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "TEMP": "${workspaceFolder}\\temp",
+                    "TMP": "${workspaceFolder}\\temp"
+                }
             },
             "group": "build",
             "presentation": {
@@ -76,7 +96,11 @@
             "type": "shell",
             "command": "cmake --build build --config Release --target test_extract_moves",
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "TEMP": "${workspaceFolder}\\temp",
+                    "TMP": "${workspaceFolder}\\temp"
+                }
             },
             "group": "build",
             "presentation": {
